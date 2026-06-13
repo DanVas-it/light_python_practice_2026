@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from scanner import scan_directory
 
 def main():
     user_input = input("Введите путь к папке для сканирования: ").strip()
@@ -15,6 +16,14 @@ def main():
         sys.exit(1)
 
     print(f"Успешно! Выбрана папка для сканирования: {target_dir.resolve()}")
+
+    print("Начинаем сканирование...")
+    files = scan_directory(target_dir)
+
+    print(f"Найдено файлов: {len(files)}\n")
+
+    for f in files:
+        print(f"[{f['mtime']}] {f['size']} байт | {f['path']}")
 
 if __name__ == "__main__":
     main()
