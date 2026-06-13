@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 from scanner import scan_directory
+from duplicates import find_duplicates
 
 def main():
     user_input = input("Введите путь к папке для сканирования: ").strip()
@@ -19,11 +20,20 @@ def main():
 
     print("Начинаем сканирование...")
     files = scan_directory(target_dir)
-
     print(f"Найдено файлов: {len(files)}\n")
 
-    for f in files:
-        print(f"[{f['mtime']}] {f['size']} байт | {f['path']}")
+    print("Поиск дубликатов...")
+    duplicates = find_duplicates(files)
+
+    if not duplicates:
+        print("Дубликаты не найдены.\n")
+    else:
+        print(f"Найдено групп дубликатов: {len(duplicates)}\n")
+        for file_hash, paths in duplicates.items():
+            print(f"Группа совпадений (хэш: {file_hash[:8]}...):")
+            for path in paths:
+                print(f"- {path}")
+            print()
 
 if __name__ == "__main__":
     main()
