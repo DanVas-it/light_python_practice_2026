@@ -1,17 +1,23 @@
 import sys
+import argparse
 from pathlib import Path
 from scanner import scan_directory
 from duplicates import find_duplicates
 from comparator import compare_directories
 
-def main():
-    user_input = input("Введите путь к папке для сканирования: ").strip()
 
-    if not user_input:
+def main():
+    parser = argparse.ArgumentParser(description="Сканирование папки, поиск дубликатов и сравнение с бэкапом")
+    parser.add_argument("directory", type=str, nargs="?", help="Путь к папке для сканирования")
+    parser.add_argument("--backup", "-b", type=str, help="Путь к папке резервной копии для сравнения")
+
+    args = parser.parse_args()
+
+    if not args.directory:
         print("Ошибка: Путь не может быть пустым.", file=sys.stderr)
         sys.exit(1)
 
-    target_dir = Path(user_input)
+    target_dir = Path(args.directory)
 
     if not target_dir.exists() or not target_dir.is_dir():
         print(f"Ошибка: Путь '{target_dir}' не существует или не является папкой.", file=sys.stderr)
@@ -36,15 +42,8 @@ def main():
                 print(f"- {path}")
             print()
 
-    answer = input("Хотите сравнить эту папку с бэкапом? (y/n): ").strip().lower()
-
-    if answer in ('y', 'yes', 'д', 'да'):
-        backup_input = input("Введите путь к папке резервной копии: ").strip()
-        if not backup_input:
-            print("Сравнение отменено: не указан путь.", file=sys.stderr)
-            return
-
-        backup_dir = Path(backup_input)
+    if args.backup:
+        backup_dir = Path(args.backup)
         if not backup_dir.exists() or not backup_dir.is_dir():
             print(f"Ошибка: Путь бэкапа '{backup_dir}' не существует или не папка.", file=sys.stderr)
             sys.exit(1)
