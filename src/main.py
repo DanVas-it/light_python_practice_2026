@@ -1,13 +1,11 @@
 import sys
 import argparse
 from pathlib import Path
-from scanner import scan_directory
-from duplicates import find_duplicates
-from comparator import compare_directories
+from scanner import scan_and_analyze  # Импортируем нашу новую функцию
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Сканирование папки, поиск дубликатов и сравнение с бэкапом")
+    parser = argparse.ArgumentParser(description="Потоковое сканирование папки, поиск дубликатов и сравнение с бэкапом")
     parser.add_argument("directory", type=str, nargs="?", help="Путь к папке для сканирования")
     parser.add_argument("--backup", "-b", type=str, help="Путь к папке резервной копии для сравнения")
 
@@ -23,15 +21,22 @@ def main():
         print(f"Ошибка: Путь '{target_dir}' не существует или не является папкой.", file=sys.stderr)
         sys.exit(1)
 
+    backup_dir = Path(args.backup) if args.backup else None
+    if backup_dir and (not backup_dir.exists() or not backup_dir.is_dir()):
+        print(f"Ошибка: Путь бэкапа '{backup_dir}' не существует или не папка.", file=sys.stderr)
+        sys.exit(1)
+
     print(f"Успешно! Выбрана папка для сканирования: {target_dir.resolve()}")
+    if backup_dir:
+        print(f"Выбрана папка бэкапа для сравнения: {backup_dir.resolve()}")
 
-    print("Начинаем сканирование...")
-    files = scan_directory(target_dir)
-    print(f"Найдено файлов: {len(files)}\n")
+    print("\nЗапуск анализа файловой системы...")
 
-    print("Поиск дубликатов...")
-    duplicates = find_duplicates(files)
+    total_files, duplicates, diff = scan_and_analyze(target_dir, backup_dir)
 
+    print(f"Сканирование завершено. Обработано файлов в источнике: {total_files}\n")
+
+    print("=== ОТЧЕТ О ДУБЛИКАТАХ ===")
     if not duplicates:
         print("Дубликаты не найдены.\n")
     else:
@@ -39,45 +44,37 @@ def main():
         for file_hash, paths in duplicates.items():
             print(f"Группа совпадений (хэш: {file_hash[:8]}...):")
             for path in paths:
-                print(f"- {path}")
+                print(f"  - {path}")
             print()
 
-    if args.backup:
-        backup_dir = Path(args.backup)
-        if not backup_dir.exists() or not backup_dir.is_dir():
-            print(f"Ошибка: Путь бэкапа '{backup_dir}' не существует или не папка.", file=sys.stderr)
-            sys.exit(1)
-
-        print("Сканирование резервной копии...")
-        backup_files = scan_directory(backup_dir)
-
-        diff = compare_directories(files, target_dir, backup_files, backup_dir)
-
-        print("\nОТЧЕТ О РАСХОЖДЕНИЯХ")
+    # --- Вывод сравнения с бэкапом ---
+    if backup_dir:
+        print("=== ОТЧЕТ О РАСХОЖДЕНИЯХ С БЭКАПОМ ===")
 
         # 1. Отсутствующие файлы
         if diff['missing']:
-            print(f"\nОтсутствуют в бэкапе ({len(diff['missing'])} шт.):")
+            print(f"\n[!] Отсутствуют в бэкапе ({len(diff['missing'])} шт.):")
             for p in diff['missing']:
-                print(f"- {p}")
+                print(f"  - {p}")
         else:
-            print("\nОтсутствующие файлы: отсутствуют (все файлы на месте)")
+            print("\n✔ Отсутствующие файлы: отсутствуют (все файлы на месте)")
 
         # 2. Измененные файлы
         if diff['modified']:
-            print(f"\nИзмененные файлы ({len(diff['modified'])} шт.):")
+            print(f"\n[~] Измененные файлы ({len(diff['modified'])} шт.):")
             for p in diff['modified']:
-                print(f"- {p}")
+                print(f"  - {p}")
         else:
-            print("Измененные файлы: нет изменений")
+            print("✔ Измененные файлы: нет изменений")
 
         # 3. Лишние файлы
         if diff['extra']:
-            print(f"\nЛишние файлы в бэкапе ({len(diff['extra'])} шт.):")
+            print(f"\n[+] Лишние файлы в бэкапе ({len(diff['extra'])} шт.):")
             for p in diff['extra']:
-                print(f"- {p}")
+                print(f"  - {p}")
         else:
-            print("Лишние файлы в бэкапе: нет лишних")
+            print("✔ Лишние файлы в бэкапе: нет лишних")
+
 
 if __name__ == "__main__":
     main()
